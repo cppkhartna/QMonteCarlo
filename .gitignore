@@ -1,0 +1,6 @@
+mtwist/*
+QPas/*
+QPython/*
+QDMC
+*.so
+deps.mk
