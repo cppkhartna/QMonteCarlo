@@ -1,0 +1,3 @@
+[submodule "mtwist"]
+	path = mtwist
+	url = git@github.com:frt/mtwist.git
