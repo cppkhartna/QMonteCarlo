@@ -1,7 +1,4 @@
-QPas/*
-QPython/*
 QDMC
-docs/*
 *.so
 *.o
 deps.mk

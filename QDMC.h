@@ -34,7 +34,7 @@ class QDMC
 {
     int N_0 = 4000;
     int N_1;
-    int N_max = 2000;
+    //int N_max = 2000;
     double dtau = 0.01;
     int x_min = -30;
     int x_max = 30;
