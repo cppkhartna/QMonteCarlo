@@ -1,7 +1,6 @@
 #include "QDMC.h"
 
 using namespace std;
-QDMC Qh;
 
 QDMC::QDMC()
 {
@@ -90,7 +89,7 @@ void QDMC::branch()
             {
                 replica *current = new replica();
 
-                current->x = new double[3];
+                current->x = new double[d];
                 for (int i = 0; i < d; i++)
                     current->x[i] = p1->x[i];
 
@@ -118,14 +117,14 @@ void QDMC::run(int N_0, int tau_max)
         walk();
         branch();
 
-        E_r = V_avg/double(N_0);
+        E_r = V_avg/double(N_0) + E_proton();
         N_0 = N_1;
     }
 }
 
 inline double QDMC::W(replica *x)
 {
-    double V_x = model->V(x);
+    double V_x = V(x);
     V_avg += V_x;
     return exp(-(V_x - E_r)*dtau);
 }
@@ -135,25 +134,30 @@ replica* QDMC::getReplicas()
     return replicas;
 };
 
+QDMC *Qh; 
+
 extern "C" replica* run(int N_0, int tau_max, bool is_atom)
 {
-    if (is_atom)
+    if (!is_atom)
     {
-        Qh.init_replicas(N_0, 0.0, 0.0, 1.0);
-        QAtomH* atom = new QAtomH();
-        Qh.setModel(atom);
+        Qh = (QAtomH*) new QAtomH();
+        Qh->init_replicas(N_0, 0.0, 0.0, 1.0);
         std::cout << "atom" << std::endl;
     }
     else
     {
-        Qh.init_replicas(N_0, 0.0, 0.0, 0.0);
-        QIonH* ion = new QIonH();
-        ion->setR(2.0);
-        Qh.setModel(ion);
         std::cout << "ion" << std::endl;
+        Qh = (QIonH*) new QIonH();
+        Qh->init_replicas(N_0, 0.0, 0.0, 0.0);
+        Qh->setR(2.0);
     }
-    Qh.run(N_0, tau_max);
-    return Qh.getReplicas();
+    Qh->run(N_0, tau_max);
+    return Qh->getReplicas();
+};
+
+void QIonH::setR(double R_proton)
+{
+    R = R_proton;
 };
 
 inline double QAtomH::V(replica *rep)
@@ -170,16 +174,6 @@ inline double QAtomH::V(replica *rep)
     return V_x;
 };
 
-void QDMC::setModel(QModel* mod)
-{
-    model = mod;
-};
-
-void QIonH::setR(double R_proton)
-{
-    R = R_proton;
-};
-
 inline double QIonH::V(replica *rep)
 {
     double V_x = 0.0;
@@ -193,6 +187,16 @@ inline double QIonH::V(replica *rep)
        V_x  = V_x - 1.0/r1 - 1.0/r2;
     }
     return V_x;
+};
+
+inline double QIonH::E_proton()
+{
+    return 1.0/(double)R;
+};
+
+inline double QAtomH::E_proton()
+{
+    return 0;
 };
 
 int main()

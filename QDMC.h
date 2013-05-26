@@ -10,26 +10,6 @@ public:
     replica *next;
 };
 
-class QModel
-{
-public:
-    virtual double V(replica *rep) = 0;
-};
-
-class QAtomH: public QModel
-{
-public:
-    double V(replica *rep);
-};
-
-class QIonH: public QModel
-{
-    double R;
-public:
-    double V(replica *rep);
-    void setR(double R_proton);
-};
-
 class QDMC
 {
     int N_0 = 4000;
@@ -43,10 +23,9 @@ class QDMC
     double E_r = -1.0;
     double V_avg = 0.0;
     replica* replicas = NULL;
-    QModel* model;
 public:
     QDMC();
-    ~QDMC();
+    virtual ~QDMC();
     void init_replicas(int N_0, double x, double y, double z);
     void run(int N_0, int tau_max);
     void walk();
@@ -54,5 +33,23 @@ public:
     void count(){};
     replica* getReplicas();
     double W(replica *x);
-    void setModel(QModel* mod);
+    virtual double V(replica *rep) = 0;
+    virtual double E_proton() = 0;
+    virtual void setR(double R_proton){R_proton=0;};
+};
+
+class QAtomH: public QDMC
+{
+public:
+    double V(replica *rep);
+    double E_proton();
+};
+
+class QIonH: public QDMC
+{
+    double R;
+public:
+    double V(replica *rep);
+    void setR(double R_proton);
+    double E_proton();
 };

@@ -14,8 +14,8 @@ ROOT = os.path.dirname(os.path.abspath(__file__))
 qlib = CDLL('%s/qlib.so' % ROOT)
 run = qlib.run
 run.restype = POINTER(replica)
-atom = True
-ion = False
+atom = False
+ion = True
 replicas = run(c_int(4000), c_int(1000), ion)
 
 fig=p.figure()

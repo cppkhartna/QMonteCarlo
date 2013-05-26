@@ -1,6 +1,6 @@
 CXX = g++
-CXXFLAGS = -Wall -g -lm -lstdc++ -std=c++11 -fPIC 
-CFLAGS = -Wall -g -lm -fPIC 
+CXXFLAGS =  -g -lm -lstdc++ -std=c++11 -fPIC 
+CFLAGS =  -g -lm -fPIC 
 
 SRCS = mtwist/mtwist.c mtwist/randistrs.c QDMC.cpp
 
