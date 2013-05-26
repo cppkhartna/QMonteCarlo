@@ -14,12 +14,12 @@ class QDMC
 {
     int N_0 = 4000;
     int N_1;
-    //int N_max = 2000;
+    int N_max = 10000;
     double dtau = 0.01;
     int x_min = -30;
     int x_max = 30;
     int n_b = 200;
-    int d = 3;
+    int d = 6; // 6
     double E_r = -1.0;
     double V_avg = 0.0;
     replica* replicas = NULL;
@@ -27,7 +27,7 @@ public:
     QDMC();
     virtual ~QDMC();
     void init_replicas(int N_0, double *x);
-    void run(int N_0, int tau_max);
+    void run(int tau_max);
     void walk();
     void branch();
     void count(){};
@@ -47,9 +47,17 @@ public:
 
 class QIonH: public QDMC
 {
-    double R;
+    double R_proton;
 public:
+    int ind = 0;
     double V(replica *rep);
     void setR(double R_proton);
+    double R(){return R_proton;};
     double E_proton();
+};
+
+class QMoleculeH: public QIonH
+{
+public:
+    double V(replica *rep);
 };

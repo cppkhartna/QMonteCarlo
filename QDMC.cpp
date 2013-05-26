@@ -1,6 +1,7 @@
 #include "QDMC.h"
 
 using namespace std;
+const double eh_to_ev = 27.211384523232323;
 
 QDMC::QDMC()
 {
@@ -84,16 +85,19 @@ void QDMC::branch()
         }
         else if (m_n != 1)
         {
-            for (int j = 1; j < m_n; j++)
+            //if (N_0 < N_max)
             {
-                replica *current = new replica();
+                for (int j = 1; j < m_n; j++)
+                {
+                    replica *current = new replica();
 
-                current->x = new double[d];
-                for (int i = 0; i < d; i++)
-                    current->x[i] = p1->x[i];
+                    current->x = new double[d];
+                    for (int i = 0; i < d; i++)
+                        current->x[i] = p1->x[i];
 
-                current->next = replicas;
-                replicas = current;
+                    current->next = replicas;
+                    replicas = current;
+                }
             }
         }
         p0 = p1;
@@ -101,22 +105,30 @@ void QDMC::branch()
     }
 }
 
-void QDMC::run(int N_0, int tau_max)
+void QDMC::run(int tau_max)
 {
-    //init_replicas(N_0);
+    double E_curr, E_cum = 0;
     for (int tau = 0; tau <= tau_max; tau++)
     {
-        if (tau % 100 == 0)
+        E_curr = (E_r + E_proton())*eh_to_ev;
+        if (tau > 3000)
+            E_cum += E_curr;
+
+        if (tau % 100 == 0 && tau != 0)
         {
             cout.precision(17);
-            cout << tau << " : " << N_0 << " : " <<  E_r << endl;
+            if (tau <= 3000)
+                cout << tau << " : " << N_0 << " : " << E_curr << endl;
+            else
+                cout << tau << " : " << N_0 << " : " << E_cum/(tau-3000) << endl;
         }
+
         V_avg = 0.0;
 
         walk();
         branch();
 
-        E_r = V_avg/double(N_0) + E_proton();
+        E_r = V_avg/double(N_1);
         N_0 = N_1;
     }
 }
@@ -135,28 +147,35 @@ replica* QDMC::getReplicas()
 
 QDMC *Qh; 
 
-extern "C" replica* run(int N_0, int tau_max, bool is_atom)
+extern "C" replica* run(int N_0, int tau_max, int is_atom)
 {
-    if (!is_atom)
+    if (is_atom == 1)
     {
         Qh = (QAtomH*) new QAtomH();
         double x[3] = {0.0, 0.0, 1.0};
         Qh->init_replicas(N_0, x);
     }
-    else
+    else if (is_atom == 2)
     {
         Qh = (QIonH*) new QIonH();
-        double x[3] = {0.0, 0.0, 0.0};
+        double x[3] = {0.0, 0.0, 1.0};
         Qh->init_replicas(N_0, x);
         Qh->setR(2.0);
     }
-    Qh->run(N_0, tau_max);
+    else
+    {
+        Qh = (QMoleculeH*) new QMoleculeH();
+        double x[6] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+        Qh->init_replicas(N_0, x);
+        Qh->setR(1.4);
+    }
+    Qh->run(tau_max);
     return Qh->getReplicas();
 };
 
 void QIonH::setR(double R_proton)
 {
-    R = R_proton;
+    this->R_proton = R_proton;
 };
 
 inline double QAtomH::V(replica *rep)
@@ -168,7 +187,7 @@ inline double QAtomH::V(replica *rep)
     double r = sqrt(x*x + y*y + z*z);
     if (r > 0.0)
     {
-        V_x = V_x - 1.0/r;
+        V_x = - 1.0/r;
     }
     return V_x;
 };
@@ -176,21 +195,47 @@ inline double QAtomH::V(replica *rep)
 inline double QIonH::V(replica *rep)
 {
     double V_x = 0.0;
-    double x = rep->x[0];
-    double y = rep->x[1];
-    double z = rep->x[2];
-    double r1 = sqrt(x*x + y*y + (z - 0.5*R)*(z - 0.5*R));
-    double r2 = sqrt(x*x + y*y + (z + 0.5*R)*(z + 0.5*R));
-    if (r1 > 0.0 && r2 > 0)
+    double x = rep->x[0+ind];
+    double y = rep->x[1+ind];
+    double z = rep->x[2+ind];
+    double r_minus = sqrt(x*x + y*y + (z - 0.5*R())*(z - 0.5*R()));
+    double r_plus  = sqrt(x*x + y*y + (z + 0.5*R())*(z + 0.5*R()));
+    if (r_minus > 0.0 && r_plus > 0)
     {
-       V_x  = V_x - 1.0/r1 - 1.0/r2;
+       V_x  = 0 - 1.0/r_plus - 1.0/r_minus;
+    }
+    return V_x;
+};
+
+inline double QMoleculeH::V(replica *rep)
+{
+    double V_x = 0.0;
+    // first electron
+    ind = 0;
+    V_x += QIonH::V(rep);
+    double x1 = rep->x[0];
+    double y1 = rep->x[1];
+    double z1 = rep->x[2];
+
+    // second electron
+    ind = 3;
+    V_x += QIonH::V(rep);
+    double x2 = rep->x[3];
+    double y2 = rep->x[4];
+    double z2 = rep->x[5];
+
+    // r12
+    double r12= sqrt((x1-x2)*(x1-x2) + (y1-y2)*(y1-y2) + (z1-z2)*(z1-z2));
+    if (r12 > 0)
+    {
+       V_x  += 1.0/r12;
     }
     return V_x;
 };
 
 inline double QIonH::E_proton()
 {
-    return 1.0/(double)R;
+    return 1.0/(double)R();
 };
 
 inline double QAtomH::E_proton()
@@ -200,5 +245,5 @@ inline double QAtomH::E_proton()
 
 int main()
 {
-    run(4000, 10000, false);
+    run(4000, 10000, 3);
 }
