@@ -26,7 +26,7 @@ class QDMC
 public:
     QDMC();
     virtual ~QDMC();
-    void init_replicas(int N_0, double x, double y, double z);
+    void init_replicas(int N_0, double *x);
     void run(int N_0, int tau_max);
     void walk();
     void branch();

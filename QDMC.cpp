@@ -22,17 +22,16 @@ QDMC::~QDMC()
     }
 };
 
-void QDMC::init_replicas(int N_0, double x, double y, double z)
+void QDMC::init_replicas(int N_0, double *x)
 {
     this->N_0 = N_0;
     for (int i = 0; i < N_0; i++)
     {
         replica *current = new replica();
 
-        current->x = new double[3];
-        current->x[0] = x;
-        current->x[1] = y;
-        current->x[2] = z;
+        current->x = new double[d];
+        for (int j = 0; j < d; j++)
+            current->x[j] = x[j];
 
         current->next = replicas;
         replicas = current;
@@ -141,14 +140,14 @@ extern "C" replica* run(int N_0, int tau_max, bool is_atom)
     if (!is_atom)
     {
         Qh = (QAtomH*) new QAtomH();
-        Qh->init_replicas(N_0, 0.0, 0.0, 1.0);
-        std::cout << "atom" << std::endl;
+        double x[3] = {0.0, 0.0, 1.0};
+        Qh->init_replicas(N_0, x);
     }
     else
     {
-        std::cout << "ion" << std::endl;
         Qh = (QIonH*) new QIonH();
-        Qh->init_replicas(N_0, 0.0, 0.0, 0.0);
+        double x[3] = {0.0, 0.0, 0.0};
+        Qh->init_replicas(N_0, x);
         Qh->setR(2.0);
     }
     Qh->run(N_0, tau_max);
