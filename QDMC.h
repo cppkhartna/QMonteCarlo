@@ -23,6 +23,7 @@ class QDMC
     double E_r = -1.0;
     double V_avg = 0.0;
     replica* replicas = NULL;
+    double* E_array;
 public:
     QDMC();
     virtual ~QDMC();
@@ -32,6 +33,7 @@ public:
     void branch();
     void count(){};
     replica* getReplicas();
+    double* getEnergies();
     double W(replica *x);
     virtual double V(replica *rep) = 0;
     virtual double E_proton() = 0;

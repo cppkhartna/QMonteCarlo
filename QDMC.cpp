@@ -107,20 +107,26 @@ void QDMC::branch()
 
 void QDMC::run(int tau_max)
 {
-    double E_curr, E_cum = 0;
+    double E_curr = 0, E_cum = 0, E_avg = 0;
+    E_array = new double[tau_max+1];
     for (int tau = 0; tau <= tau_max; tau++)
     {
         E_curr = (E_r + E_proton())*eh_to_ev;
         if (tau > 3000)
+        {
             E_cum += E_curr;
+            E_avg = E_cum/(tau-3000);
+        }
+        else
+        {
+            E_avg = E_curr;
+        }
+        E_array[tau] = E_avg;
 
         if (tau % 100 == 0 && tau != 0)
         {
             cout.precision(17);
-            if (tau <= 3000)
-                cout << tau << " : " << N_0 << " : " << E_curr << endl;
-            else
-                cout << tau << " : " << N_0 << " : " << E_cum/(tau-3000) << endl;
+            cout << tau << " : " << N_0 << " : " << E_avg << endl;
         }
 
         V_avg = 0.0;
@@ -145,9 +151,14 @@ replica* QDMC::getReplicas()
     return replicas;
 };
 
+double* QDMC::getEnergies()
+{
+    return E_array;
+};
+
 QDMC *Qh; 
 
-extern "C" replica* run(int N_0, int tau_max, int is_atom)
+extern "C" replica* run(int N_0, int tau_max, int is_atom, double R, double* es)
 {
     if (is_atom == 1)
     {
@@ -160,16 +171,25 @@ extern "C" replica* run(int N_0, int tau_max, int is_atom)
         Qh = (QIonH*) new QIonH();
         double x[3] = {0.0, 0.0, 1.0};
         Qh->init_replicas(N_0, x);
-        Qh->setR(2.0);
+        if (R == 0)
+            Qh->setR(2.0);
+        else
+            Qh->setR(R);
     }
     else
     {
         Qh = (QMoleculeH*) new QMoleculeH();
         double x[6] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
         Qh->init_replicas(N_0, x);
-        Qh->setR(1.4);
+        if (R == 0)
+            Qh->setR(1.4);
+        else
+            Qh->setR(R);
     }
     Qh->run(tau_max);
+    double* aux = Qh->getEnergies();
+    for (int i = 0; i < tau_max; i++)
+        es[i] = aux[i];
     return Qh->getReplicas();
 };
 
@@ -245,5 +265,5 @@ inline double QAtomH::E_proton()
 
 int main()
 {
-    run(4000, 10000, 3);
+    run(4000, 10000, 3, 0.0, NULL);
 }
