@@ -38,6 +38,7 @@ public:
     virtual double V(replica *rep) = 0;
     virtual double E_proton() = 0;
     virtual void setR(double R_proton){R_proton=0;};
+    void setE_array(double* es){E_array = es;};
 };
 
 class QAtomH: public QDMC

@@ -108,7 +108,8 @@ void QDMC::branch()
 void QDMC::run(int tau_max)
 {
     double E_curr = 0, E_cum = 0, E_avg = 0;
-    E_array = new double[tau_max+1];
+    if (E_array == NULL)
+        E_array = new double[tau_max+1];
     for (int tau = 0; tau <= tau_max; tau++)
     {
         E_curr = (E_r + E_proton())*eh_to_ev;
@@ -160,6 +161,11 @@ QDMC *Qh;
 
 extern "C" replica* run(int N_0, int tau_max, int is_atom, double R, double* es)
 {
+    if (Qh != NULL)
+    {
+        delete Qh;
+    };
+
     if (is_atom == 1)
     {
         Qh = (QAtomH*) new QAtomH();
@@ -186,10 +192,8 @@ extern "C" replica* run(int N_0, int tau_max, int is_atom, double R, double* es)
         else
             Qh->setR(R);
     }
+    Qh->setE_array(es);
     Qh->run(tau_max);
-    double* aux = Qh->getEnergies();
-    for (int i = 0; i < tau_max; i++)
-        es[i] = aux[i];
     return Qh->getReplicas();
 };
 

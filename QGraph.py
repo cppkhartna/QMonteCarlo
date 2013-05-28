@@ -125,11 +125,12 @@ def main():
             if (args.itr[0] < magic):
                 print "There are not enough iterations (%s)" % magic
                 sys.exit()
-            xs = np.arange(1.3, 3.0, 0.1)
+            xs = np.arange(1.4, 3.15, 0.1)
             for rad in xs:
+                print "rad: %s" % rad
                 replicas = run(c_int(args.rep[0]), c_int(args.itr[0]),
                         c_int(args.aim[0]), c_double(rad), es)
-                varz.append(np.var(es[magic:]))
+                varz.append(np.var(es[magic-50:]))
                 means.append(np.mean(es[magic:]))
             parabola(xs, means, varz)
     else:
