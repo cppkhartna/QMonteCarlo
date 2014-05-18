@@ -61,13 +61,6 @@ public:
     //void setE_array(double* es){E_array = es;};
 };
 
-class QDMC
-{
-public:
-    QDMC();
-    void run(QModel* Q, int tau_max);
-};
-
 struct nucleus
 {
 public:

@@ -1,8 +1,9 @@
+MPICXX = mpiCC
 CXX = g++
-CXXFLAGS =  -g -pg -lm -lstdc++ -std=c++11 -std=gnu++11 -fPIC -O3
-CFLAGS =  -g -pg -lm -fPIC
+CXXFLAGS = -pg -lm -lstdc++ -std=c++11 -std=gnu++11 -fPIC -O3
+CFLAGS = -pg -lm -fPIC
 
-SRCS = mtwist/mtwist.c mtwist/randistrs.c math.cpp QMolecule.cpp
+SRCS = mtwist/mtwist.c mtwist/randistrs.c math.cpp QMolecule.cpp QDMC.cpp
 
 OBJS = $(SRCS:.cpp=.o)
 OBJS = $(SRCS:.c=.o)
@@ -14,6 +15,9 @@ default: QDMC
 
 QDMC: $(OBJS)
 	$(CXX) $(CXXFLAGS) $^ -o $@ 
+
+PDMC: $(OBJS)
+	$(MPICXX) $(CXXFLAGS) $^ -o $@ 
 
 qlib: $(OBJS)
 	$(CXX) $(CXXFLAGS) -shared -Wl,-soname,qlib.so $^ -o qlib.so
