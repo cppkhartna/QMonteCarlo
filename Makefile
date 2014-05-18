@@ -1,8 +1,8 @@
 CXX = g++
-CXXFLAGS =  -g -lm -lstdc++ -std=c++11 -fPIC 
-CFLAGS =  -g -lm -fPIC 
+CXXFLAGS =  -g -pg -lm -lstdc++ -std=c++11 -std=gnu++11 -fPIC -O3
+CFLAGS =  -g -pg -lm -fPIC
 
-SRCS = mtwist/mtwist.c mtwist/randistrs.c QDMC.cpp
+SRCS = mtwist/mtwist.c mtwist/randistrs.c math.cpp QDMC.cpp
 
 OBJS = $(SRCS:.cpp=.o)
 OBJS = $(SRCS:.c=.o)

@@ -12,15 +12,7 @@ QDMC::QDMC()
 
 QDMC::~QDMC()
 {
-    replica *p1 = replicas;
-    replica *p0 = NULL;
-    while (p1 != NULL)
-    {
-        delete[] p1->x;
-        p0 = p1->next;
-        delete p1;
-        p1 = p0;
-    }
+    replicas.clear();
 };
 
 void QDMC::init_replicas(int N_0, double *x)
@@ -30,78 +22,61 @@ void QDMC::init_replicas(int N_0, double *x)
     {
         replica *current = new replica();
 
-        current->x = new double[d];
         for (int j = 0; j < d; j++)
-            current->x[j] = x[j];
+        {
+            current->coords.resize(d);
+            for (int k = 0; k < MAXDIM; k++)
+                current->coords[j].add_random(k, x[j], x_max, x_min);
+        }
 
-        current->next = replicas;
-        replicas = current;
+        replicas.push_front(*current);
     }
 };
 
 void QDMC::walk()
 {
-    replica *p1 = replicas;
-    while (p1 != NULL)
+    for (auto it = replicas.begin(); it != replicas.end(); it++)
     {
         for (int j = 0; j < d; j++)
-        {
-            double p = rd_normal(0.0, 1.0);
-            double change = sqrt(dtau) * p;
-            p1->x[j] += change;
-            if (p1->x[j] > x_max)
-                p1->x[j] = x_max;
-            if (p1->x[j] < x_min)
-                p1->x[j] = x_min;
-        }
-        p1 = p1->next;
+            for (int k = 0; k < MAXDIM; k++)
+            {
+                double p = rd_normal(0.0, 1.0);
+                double change = sqrt(dtau) * p;
+                it->coords[j].add_random(k, change, x_max, x_min);
+            }
     }
 }
 
 void QDMC::branch()
 {
-    replica *p1 = replicas;
-    replica *p0 = NULL;
     N_1 = 0;
-    while (p1 != NULL)
+    for (auto it = replicas.begin(); it != replicas.end(); ++it)
     {
         N_1++;
         double u = rd_uniform(0.0, 1.0);
-        int m_n = min(int(W(p1) + u), 3);
+        int m_n = min(int(W(*it) + u), 3);
         if (m_n == 0)
         {
-            if (p0 != NULL)
-            {
-                p0->next = p1->next;
-            }
-            else
-            {
-                p0 = p1->next;
-            }
-
-            delete[] p1->x;
-            delete p1;
-            p1 = p0;
+            replicas.erase(it++);
         }
         else if (m_n != 1)
         {
-            //if (N_0 < N_max)
+            if (N_0 < N_max)
             {
                 for (int j = 1; j < m_n; j++)
                 {
+                    //copy
                     replica *current = new replica();
 
-                    current->x = new double[d];
+                    current->coords.resize(d);
                     for (int i = 0; i < d; i++)
-                        current->x[i] = p1->x[i];
-
-                    current->next = replicas;
-                    replicas = current;
+                    {
+                        current->coords[i] = it->coords[i];
+                    }
+                    replicas.push_front(*current);
                 }
             }
         }
-        p0 = p1;
-        p1 = p1->next;
     }
 }
 
@@ -140,134 +115,90 @@ void QDMC::run(int tau_max)
     }
 }
 
-inline double QDMC::W(replica *x)
+inline double QDMC::W(replica &x)
 {
     double V_x = V(x);
     V_avg += V_x;
     return exp(-(V_x - E_r)*dtau);
 }
 
-replica* QDMC::getReplicas()
-{
-    return replicas;
-};
+//replica* QDMC::getReplicas()
+//{
+    //return replicas;
+//};
 
 double* QDMC::getEnergies()
 {
     return E_array;
 };
 
-QDMC *Qh; 
-
-extern "C" replica* run(int N_0, int tau_max, int is_atom, double R, double* es)
+inline double QMolecule::E_proton()
 {
-    if (Qh != NULL)
+    double result = 0;
+    for (auto it = nuclei.begin(); it < nuclei.end(); it++)
     {
-        delete Qh;
-    };
-
-    if (is_atom == 1)
-    {
-        Qh = (QAtomH*) new QAtomH();
-        double x[3] = {0.0, 0.0, 1.0};
-        Qh->init_replicas(N_0, x);
+        for (auto jt = it+1; jt < nuclei.end(); jt++)
+            result += ((*jt).charge*(*it).charge/sub_len((*jt).pos, (*it).pos));
     }
-    else if (is_atom == 2)
-    {
-        Qh = (QIonH*) new QIonH();
-        double x[3] = {0.0, 0.0, 1.0};
-        Qh->init_replicas(N_0, x);
-        if (R == 0)
-            Qh->setR(2.0);
-        else
-            Qh->setR(R);
-    }
-    else
-    {
-        Qh = (QMoleculeH*) new QMoleculeH();
-        double x[6] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
-        Qh->init_replicas(N_0, x);
-        if (R == 0)
-            Qh->setR(1.4);
-        else
-            Qh->setR(R);
-    }
-    Qh->setE_array(es);
-    Qh->run(tau_max);
-    return Qh->getReplicas();
+    return result;
 };
 
-void QIonH::setR(double R_proton)
+void QMolecule::add(string name, double charge, vec_3d pos)
 {
-    this->R_proton = R_proton;
+   nucleus *nuc = new nucleus(name, charge, pos);
+   nuclei.push_back(*nuc);
 };
 
-inline double QAtomH::V(replica *rep)
+nucleus::nucleus(string name, double charge, vec_3d pos)
+{
+    this->name = name;
+    this->charge = charge;
+    this->pos = pos;
+};
+
+inline double QMolecule::V(replica &rep)
 {
     double V_x = 0.0;
-    double x = rep->x[0];
-    double y = rep->x[1];
-    double z = rep->x[2];
-    double r = sqrt(x*x + y*y + z*z);
-    if (r > 0.0)
+    for (int i = 0; i < d; i++)
     {
-        V_x = - 1.0/r;
+        if (d == 1 && nuclei.size() == 1) // atom
+        {
+            V_x -= (1/sqrt(rep.coords[i].length2()));
+        }
+        else 
+        {
+            // ion+
+            for (auto it = nuclei.begin(); it < nuclei.end(); it++)
+            {
+                V_x -= ((*it).charge/sub_len(rep.coords[i], (*it).pos));
+            }
+            // molecule
+            for (int j = i+1; j < d; j++)
+            {
+                //pos1 = rep.coords[j];
+                V_x += (1/sub_len(rep.coords[i], rep.coords[j]));
+            }
+        }
+    
     }
     return V_x;
-};
-
-inline double QIonH::V(replica *rep)
-{
-    double V_x = 0.0;
-    double x = rep->x[0+ind];
-    double y = rep->x[1+ind];
-    double z = rep->x[2+ind];
-    double r_minus = sqrt(x*x + y*y + (z - 0.5*R())*(z - 0.5*R()));
-    double r_plus  = sqrt(x*x + y*y + (z + 0.5*R())*(z + 0.5*R()));
-    if (r_minus > 0.0 && r_plus > 0)
-    {
-       V_x  = 0 - 1.0/r_plus - 1.0/r_minus;
-    }
-    return V_x;
-};
-
-inline double QMoleculeH::V(replica *rep)
-{
-    double V_x = 0.0;
-    // first electron
-    ind = 0;
-    V_x += QIonH::V(rep);
-    double x1 = rep->x[0];
-    double y1 = rep->x[1];
-    double z1 = rep->x[2];
-
-    // second electron
-    ind = 3;
-    V_x += QIonH::V(rep);
-    double x2 = rep->x[3];
-    double y2 = rep->x[4];
-    double z2 = rep->x[5];
-
-    // r12
-    double r12= sqrt((x1-x2)*(x1-x2) + (y1-y2)*(y1-y2) + (z1-z2)*(z1-z2));
-    if (r12 > 0)
-    {
-       V_x  += 1.0/r12;
-    }
-    return V_x;
-};
-
-inline double QIonH::E_proton()
-{
-    return 1.0/(double)R();
-};
-
-inline double QAtomH::E_proton()
-{
-    return 0;
 };
 
 int main()
 {
-    run(4000, 10000, 3, 0.0, NULL);
+    QMolecule *mol = new QMolecule();
+    int N_0 = 4000;
+    mol->add("H", 1.0, vec_3d(0, 0, 1.0));
+    mol->add("H", 1.0, vec_3d(0, 0, -1.0));
+    //mol->add("H", 1.0, vec_3d(0, 0, -1.0));
+    //mol->add("O", 1.0, vec_3d(0, 1, 0.0));
+    mol->setD(2);
+    //double x[3] = {0.0, 0.0, 0.0};
+    double x[6] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+    //std::cout << "Joba" << std::endl;
+    //std::cout << mol->E_proton() << std::endl;
+    mol->init_replicas(N_0, x);
+    //std::cout << "Joba" << std::endl;
+    mol->run(4000);
+    //run(4000, 10000, 3, 0.0, NULL);
 }
