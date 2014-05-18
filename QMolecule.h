@@ -19,7 +19,7 @@ public:
     vector<vec_3d> coords;
 };
 
-class QDMC
+class QModel
 {
     int N_0 = 4000;
     int N_1;
@@ -30,28 +30,42 @@ class QDMC
     int n_b = 200;
     double E_r = -1.0;
     double V_avg = 0.0;
-    double* E_array;
+    //double* E_array;
 protected:
     int d = 2; // number of electrons
     list<replica> replicas;
 public:
-    QDMC();
-    virtual ~QDMC();
+    QModel(){};
+    virtual ~QModel();
     void init_replicas(int N_0, double *x);
-    void run(int tau_max);
+    //void run(int tau_max);
 
     void walk();
     void branch();
+    //void count(){};
 
-    void count(){};
     //replica* getReplicas();
-    double* getEnergies();
+    //double* getEnergies();
+
     double W(replica &x);
     virtual double V(replica &rep) = 0;
     virtual double E_proton() = 0;
-    virtual void setR(double R_proton){R_proton=0;};
-    void setD(int dd){d=dd;}
-    void setE_array(double* es){E_array = es;};
+
+    void setD(int dd){d = dd;};
+    void setE_r(double _E_r){E_r = _E_r;};
+    void setV_avg(double _V_avg){V_avg = _V_avg;};
+
+    double getE_r(){return E_r;};
+    double getV_avg(){return V_avg;};
+    long getN_1(){return N_1;};
+    //void setE_array(double* es){E_array = es;};
+};
+
+class QDMC
+{
+public:
+    QDMC();
+    void run(QModel* Q, int tau_max);
 };
 
 struct nucleus
@@ -65,8 +79,8 @@ public:
     friend std::ostream& operator<<(std::ostream& os, const nucleus& nl);
 };
 
-//: public QDMC
-class QMolecule : public QDMC
+//: public QModel
+class QMolecule : public QModel
 {
     vector<nucleus> nuclei;
 public:
