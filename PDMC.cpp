@@ -1,16 +1,25 @@
-#include "QDMC.h"
+#include "PDMC.h"
 
 using namespace std;
 const double eh_to_ev = 27.211384523232323;
 
-QDMC::QDMC()
+PDMC::PDMC()
 {
-    long utime;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+
+    if (rank == 0)
+        start = MPI_Wtime();
+
+    long utime, seed;
     utime = (long) time(NULL);
-    mt_seed32(utime);
+
+    seed = abs(((utime*181)*((rank-83)*359))%104729); 
+
+    mt_seed32(seed);   MPI_Comm_size(MPI_COMM_WORLD, &size);
 };
 
-void QDMC::run(QModel* Q, int tau_max)
+void PDMC::run(QModel* Q, int tau_max)
 {
     double E_curr = 0, E_cum = 0, E_avg = 0;
     //if (E_array == NULL)
@@ -41,8 +50,27 @@ void QDMC::run(QModel* Q, int tau_max)
         Q->walk();
         Q->branch();
 
-        int N_1 = Q->getN_1();
-        double E_r = Q->getV_avg()/double(N_1);
+        unsigned long long N_1 = Q->getN_1();
+        double V_avg = Q->getV_avg();
+        double E_r;
+
+        double vals[size];
+        unsigned long long nums[size];
+
+        MPI_Gather(&V_avg, 1, MPI_DOUBLE, vals, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+        MPI_Gather(&N_1, 1, MPI_UNSIGNED_LONG_LONG, nums, 1, MPI_UNSIGNED_LONG_LONG, 0, MPI_COMM_WORLD);
+        if (rank == 0)
+        {
+            for (int j = 0; j < size; j++)
+            {
+                vals[0] += vals[j];
+                nums[0] += nums[j];
+            }
+            V_avg = vals[0];
+            E_r = V_avg/double(nums[0]);
+        }
+        MPI_Bcast(&E_r, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+
         Q->setE_r(E_r);
 
         N_0 = N_1;
@@ -61,20 +89,18 @@ void QDMC::run(QModel* Q, int tau_max)
 
 int main(int argc, char *argv[])
 {
+    MPI_Init(&argc, &argv);
+
     QMolecule *mol = new QMolecule();
-    QDMC Q;
+    PDMC P;
     int N_0 = 4000;
     mol->add("H", 1.0, vec_3d(0, 0, 1.0));
     mol->add("H", 1.0, vec_3d(0, 0, -1.0));
-    //mol->add("H", 1.0, vec_3d(0, 0, -1.0));
-    //mol->add("O", 1.0, vec_3d(0, 1, 0.0));
     mol->setD(2);
-    //double x[3] = {0.0, 0.0, 0.0};
     double x[6] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
-    //std::cout << "Joba" << std::endl;
-    //std::cout << mol->E_proton() << std::endl;
     mol->init_replicas(N_0, x);
-    //std::cout << "Joba" << std::endl;
-    Q.run(mol, 4000);
-    //run(4000, 10000, 3, 0.0, NULL);
+
+    P.run(mol, 4000);
+
+    MPI_Finalize();
 }
