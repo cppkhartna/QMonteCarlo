@@ -1,5 +1,5 @@
 This program calculates electron states using Quantum Diffusion Monte-Carlo. 
 
-To access the gui run `python2 QGraph.py` (modify if necessary). 
+To access the GUI run `python2 QGraph.py` (modify if necessary). Compile `make qlib` in order for GUI to work //temporarily broken
 
-Compile `make qlib` in order for gui to work or `make QDMC` for sample program.
+Run `make QDMC` to compile the single-threaded program or `make PDMC` for the parallel one. NOTE: C++11
